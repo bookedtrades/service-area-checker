@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Booked Trades - Suburb Checker</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0f0f0f;
+    --surface: #1a1a1a;
+    --surface2: #222222;
+    --surface3: #2a2a2a;
+    --border: rgba(255,255,255,0.08);
+    --border-strong: rgba(255,255,255,0.14);
+    --text: #f0f0f0;
+    --text-2: #a0a0a0;
+    --text-3: #606060;
+    --orange: #f05a1a;
+    --orange-dark: #c44510;
+    --orange-bg: rgba(240,90,26,0.12);
+    --orange-border: rgba(240,90,26,0.35);
+    --green: #22c55e;
+    --green-bg: rgba(34,197,94,0.1);
+    --green-border: rgba(34,197,94,0.3);
+    --red: #ef4444;
+    --red-bg: rgba(239,68,68,0.1);
+    --red-border: rgba(239,68,68,0.3);
+    --radius: 6px;
+    --radius-lg: 10px;
+  }
+  html, body { height: 100%; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5; display: flex; flex-direction: column; }
+
+  header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 2rem; display: flex; align-items: center; height: 56px; gap: 1.5rem; flex-shrink: 0; }
+  .header-divider { width: 1px; height: 24px; background: var(--border-strong); }
+  .header-label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-3); }
+  .tab-nav { display: flex; gap: 2px; margin-left: auto; }
+  .tab-nav button { padding: 6px 14px; border-radius: var(--radius); border: none; font-size: 13px; color: var(--text-2); cursor: pointer; background: transparent; font-family: inherit; transition: all 0.15s; }
+  .tab-nav button:hover { background: var(--surface2); color: var(--text); }
+  .tab-nav button.active { background: var(--orange); color: #fff; font-weight: 600; }
+
+  .app-body { display: flex; flex: 1; overflow: hidden; }
+
+  /* Left sidebar */
+  .sidebar { width: 320px; flex-shrink: 0; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow-y: auto; }
+  .sidebar-inner { padding: 1.25rem; display: flex; flex-direction: column; gap: 1rem; }
+
+  .panel-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: var(--text-3); margin-bottom: 10px; }
+  label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-3); display: block; margin-bottom: 6px; }
+
+  input[type=text], input[type=number], select { width: 100%; padding: 9px 12px; border: 1px solid var(--border-strong); border-radius: var(--radius); font-size: 14px; font-family: inherit; color: var(--text); background: var(--surface2); outline: none; transition: border-color 0.15s; }
+  input:focus, select:focus { border-color: var(--orange); }
+  select option { background: var(--surface2); }
+  .field { margin-bottom: 0; }
+
+  button { padding: 9px 18px; border-radius: var(--radius); border: 1px solid var(--border-strong); font-size: 13px; font-weight: 500; font-family: inherit; cursor: pointer; background: var(--surface2); color: var(--text); transition: all 0.15s; }
+  button:hover { border-color: var(--orange); color: var(--orange); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  button.primary { background: var(--orange); color: #fff; border-color: var(--orange); font-weight: 700; }
+  button.primary:hover { background: var(--orange-dark); border-color: var(--orange-dark); color: #fff; }
+  button.danger { color: var(--red); border-color: var(--red-border); background: transparent; }
+  button.danger:hover { background: var(--red-bg); color: var(--red); }
+
+  .result-box { background: var(--surface2); border-radius: var(--radius-lg); padding: 1rem 1.25rem; border: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px; min-height: 80px; justify-content: center; }
+  .result-placeholder { color: var(--text-3); font-size: 13px; text-align: center; line-height: 1.6; }
+
+  .status-badge { display: inline-flex; align-items: center; gap: 8px; padding: 7px 14px; border-radius: var(--radius); font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
+  .status-badge.in { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); }
+  .status-badge.out { background: var(--red-bg); color: var(--red); border: 1px solid var(--red-border); }
+  .status-badge.edge { background: var(--orange-bg); color: var(--orange); border: 1px solid var(--orange-border); }
+  .status-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+
+  .metrics-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .metric { background: var(--surface3); border-radius: var(--radius); padding: 10px 12px; border: 1px solid var(--border); }
+  .metric-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-3); margin-bottom: 4px; }
+  .metric-value { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+  .metric-value.ok { color: var(--green); }
+  .metric-value.edge { color: var(--orange); }
+  .metric-value.bad { color: var(--red); }
+  .metric-value.neutral { color: var(--text); }
+  .result-addr { font-size: 12px; color: var(--text-3); padding-top: 8px; border-top: 1px solid var(--border); }
+
+  .divider { height: 1px; background: var(--border); }
+
+  /* Map */
+  #map { flex: 1; }
+
+  /* Setup tab */
+  .setup-page { flex: 1; overflow-y: auto; padding: 1.5rem 2rem; max-width: 580px; }
+  .setup-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.25rem; margin-bottom: 1.25rem; }
+  .client-item { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1rem 1.25rem; display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+  .client-item:hover { border-color: var(--border-strong); }
+  .client-item-name { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 2px; }
+  .client-item-meta { font-size: 12px; color: var(--text-2); }
+  .client-dot { width: 34px; height: 34px; border-radius: 50%; background: var(--orange-bg); border: 1px solid var(--orange-border); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: var(--orange); flex-shrink: 0; }
+  .appt-empty { color: var(--text-3); font-size: 13px; padding: 1.25rem; text-align: center; background: var(--surface2); border-radius: var(--radius); border: 1px dashed var(--border-strong); }
+
+  .spinner { display: inline-block; width: 11px; height: 11px; border: 1.5px solid var(--border-strong); border-top-color: var(--orange); border-radius: 50%; animation: spin 0.6s linear infinite; vertical-align: middle; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Key screen */
+  #keyScreen { flex: 1; display: flex; align-items: center; justify-content: center; padding: 2rem; }
+  .key-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 2rem; width: 100%; max-width: 460px; display: flex; flex-direction: column; gap: 16px; }
+  .key-card h2 { font-size: 18px; font-weight: 700; letter-spacing: -0.02em; }
+  .key-card p { font-size: 13px; color: var(--text-2); line-height: 1.7; }
+  .api-list { list-style: none; font-size: 13px; color: var(--text-2); line-height: 2; padding: 10px 14px; background: var(--surface2); border-radius: var(--radius); border: 1px solid var(--border); }
+  .api-list li { display: flex; align-items: center; gap: 8px; }
+  .api-list li::before { content: ""; display: inline-block; width: 5px; height: 5px; border-radius: 50%; background: var(--orange); flex-shrink: 0; }
+  .error-box { background: var(--red-bg); border: 1px solid var(--red-border); color: var(--red); border-radius: var(--radius); padding: 12px 14px; font-size: 13px; line-height: 1.7; white-space: pre-wrap; display: none; }
+  .error-box.show { display: block; }
+
+  /* Google Maps dark style overrides */
+  .pac-container { z-index: 99999; background: var(--surface2) !important; border: 1px solid var(--border-strong) !important; border-radius: var(--radius) !important; box-shadow: 0 8px 24px rgba(0,0,0,0.5) !important; font-family: inherit !important; }
+  .pac-item { background: var(--surface2) !important; color: var(--text-2) !important; border-top: 1px solid var(--border) !important; padding: 8px 12px !important; font-size: 13px !important; cursor: pointer !important; }
+  .pac-item:hover, .pac-item-selected { background: var(--surface3) !important; }
+  .pac-item-query { color: var(--text) !important; font-weight: 600 !important; }
+  .pac-matched { color: var(--orange) !important; font-weight: 700 !important; }
+  .pac-icon { display: none !important; }
+
+  @media (max-width: 720px) {
+    .app-body { flex-direction: column; }
+    .sidebar { width: 100%; height: auto; border-right: none; border-bottom: 1px solid var(--border); }
+    #map { min-height: 350px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="keyScreen" style="display:none;">
+  <div class="key-card">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;">
+      <div style="width:36px;height:36px;background:var(--orange);border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px;color:#fff;flex-shrink:0;">BT</div>
+      <div>
+        <div style="font-size:13px;font-weight:700;color:var(--text);">Booked Trades</div>
+        <div style="font-size:11px;color:var(--text-3);">Suburb Checker</div>
+      </div>
+    </div>
+    <h2>Enter your Google Maps API key</h2>
+    <ul class="api-list">
+      <li>Maps JavaScript API</li>
+      <li>Places API</li>
+      <li>Geocoding API</li>
+      <li>Distance Matrix API</li>
+    </ul>
+    <p>Credentials &gt; your key &gt; Application restrictions must be set to <strong style="color:var(--text);">None</strong>.</p>
+    <div><label>API key</label><input type="text" id="keyInputSetup" placeholder="AIza..." autocomplete="off" /></div>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <button class="primary" id="loadBtn" onclick="initWithKey()">Load tool</button>
+      <span id="loadingMsg" style="font-size:13px;color:var(--text-2);display:none;"><span class="spinner"></span>&nbsp;Loading...</span>
+    </div>
+    <div id="errorBox" class="error-box"></div>
+  </div>
+</div>
+
+<header id="mainHeader" style="display:none;">
+  <div style="display:flex;align-items:center;gap:10px;">
+    <div style="width:30px;height:30px;background:var(--orange);border-radius:5px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:13px;color:#fff;flex-shrink:0;">BT</div>
+    <span style="font-size:13px;font-weight:700;color:var(--text);letter-spacing:-0.01em;">Booked Trades</span>
+  </div>
+  <div class="header-divider"></div>
+  <span class="header-label">Suburb Checker</span>
+  <nav class="tab-nav">
+    <button class="active" onclick="switchTab('check')">Check suburb</button>
+    <button onclick="switchTab('setup')">Client setup</button>
+    <button onclick="switchTab('settings')">API key</button>
+  </nav>
+</header>
+
+<!-- Check tab -->
+<div id="tab-check" class="app-body" style="display:none;">
+  <div class="sidebar">
+    <div class="sidebar-inner">
+      <div>
+        <div class="panel-title">Client</div>
+        <div class="field"><select id="clientSelect" onchange="onClientChange()"></select></div>
+      </div>
+      <div class="divider"></div>
+      <div>
+        <div class="panel-title">Lead suburb</div>
+        <div class="field"><input type="text" id="suburbInput" placeholder="Start typing a suburb..." autocomplete="off" /></div>
+      </div>
+      <div id="resultBox" class="result-box">
+        <div class="result-placeholder">Select a client and start typing a suburb</div>
+      </div>
+    </div>
+  </div>
+  <div id="map"></div>
+</div>
+
+<!-- Setup tab -->
+<div id="tab-setup" style="display:none;flex:1;overflow-y:auto;">
+  <div class="setup-page">
+    <div class="setup-panel">
+      <div class="panel-title">Add new client</div>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div><label>Business name</label><input type="text" id="clientName" placeholder="e.g. Brisbane Fencing Co" /></div>
+        <div><label>Service area centre</label><input type="text" id="clientCenter" placeholder="Start typing a suburb..." autocomplete="off" /></div>
+        <div><label>Service radius (km)</label><input type="number" id="clientRadius" placeholder="e.g. 40" min="1" max="300" style="max-width:160px;" /></div>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <button class="primary" id="addClientBtn" onclick="addClient()">Add client</button>
+          <span id="addStatus" style="font-size:13px;"></span>
+        </div>
+      </div>
+    </div>
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:var(--text-3);margin-bottom:10px;padding-left:2px;">Configured clients</div>
+    <div id="clientsList"></div>
+  </div>
+</div>
+
+<!-- Settings tab -->
+<div id="tab-settings" style="display:none;flex:1;overflow-y:auto;">
+  <div class="setup-page">
+    <div class="setup-panel">
+      <div class="panel-title">Replace API key</div>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div><label>New API key</label><input type="text" id="replaceKeyInput" placeholder="AIza..." autocomplete="off" /></div>
+        <div style="display:flex;gap:12px;align-items:center;">
+          <button class="primary" onclick="saveReplaceKey()">Save and reload</button>
+          <span id="replaceStatus" style="font-size:13px;color:var(--text-2);"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const GMAPS_KEY = 'AIzaSyAXNgmCBtKoUpNTMWpBK2xFcA3Xs0Deox0';
+
+const DEFAULT_CLIENTS = [
+  {"id":"1700000000001","name":"SPJ Developments","centerLabel":"Parramatta NSW","centerCoords":{"lat":-33.815,"lng":151.0011},"radius":30},
+  {"id":"1700000000002","name":"Cannington Fencing Experts","centerLabel":"Winthrop WA","centerCoords":{"lat":-32.0583,"lng":115.8469},"radius":25},
+  {"id":"1700000000003","name":"All Metro Property Services","centerLabel":"Epping VIC","centerCoords":{"lat":-37.6469,"lng":145.0197},"radius":25},
+  {"id":"1700000000004","name":"Jamnicant","centerLabel":"Narre Warren South VIC","centerCoords":{"lat":-38.05,"lng":145.3167},"radius":50},
+  {"id":"1700000000005","name":"IVO Concreting","centerLabel":"Googong ACT","centerCoords":{"lat":-35.4333,"lng":149.25},"radius":60},
+  {"id":"1700000000007","name":"Caddy Concreting","centerLabel":"Drouin VIC","centerCoords":{"lat":-38.1333,"lng":145.85},"radius":55},
+  {"id":"1700000000011","name":"Sunny Coast Concreting","centerLabel":"Eudlo QLD","centerCoords":{"lat":-26.7333,"lng":152.95},"radius":40},
+  {"id":"1700000000012","name":"Benchmark Concrete and Landscaping","centerLabel":"Coburg North VIC","centerCoords":{"lat":-37.7333,"lng":144.9667},"radius":20},
+  {"id":"1700000000013","name":"Limitless Paving","centerLabel":"Tooradin VIC","centerCoords":{"lat":-38.2167,"lng":145.3833},"radius":50}
+];
+
+let clients = [];
+let map = null, radiusCircle = null, centerMarker = null, leadMarker = null;
+let suburbAC = null, centerAC = null;
+
+function saveClients() { try { localStorage.setItem('bt_clients_v2', JSON.stringify(clients)); } catch(e) {} }
+function loadClientsFromStorage() {
+  try {
+    const d = localStorage.getItem('bt_clients_v2');
+    const defaultIds = new Set(DEFAULT_CLIENTS.map(c => c.id));
+    if (d) {
+      const saved = JSON.parse(d);
+      const extras = saved.filter(c => !defaultIds.has(c.id));
+      clients = [...DEFAULT_CLIENTS, ...extras];
+    } else {
+      clients = [...DEFAULT_CLIENTS];
+    }
+  } catch(e) { clients = [...DEFAULT_CLIENTS]; }
+  saveClients();
+}
+
+function storeKey(k) { try { localStorage.setItem('bt_gmaps_key', k); } catch(e) {} }
+
+function showError(msg) {
+  const box = document.getElementById('errorBox');
+  box.textContent = msg;
+  box.classList.add('show');
+  document.getElementById('loadingMsg').style.display = 'none';
+  document.getElementById('loadBtn').disabled = false;
+}
+
+function initWithKey() {
+  const key = document.getElementById('keyInputSetup').value.trim() || GMAPS_KEY;
+  document.getElementById('errorBox').classList.remove('show');
+  storeKey(key);
+  document.getElementById('loadBtn').disabled = true;
+  document.getElementById('loadingMsg').style.display = 'inline';
+  loadGoogleMaps(key);
+}
+
+function saveReplaceKey() {
+  const key = document.getElementById('replaceKeyInput').value.trim();
+  if (!key.startsWith('AIza')) return;
+  storeKey(key);
+  document.getElementById('replaceStatus').textContent = 'Saved. Reloading...';
+  setTimeout(() => location.reload(), 600);
+}
+
+function loadGoogleMaps(key) {
+  if (window.google && window.google.maps) { onGoogleReady(); return; }
+  window._gmcb = onGoogleReady;
+  window.gm_authFailure = function() {
+    showError('Authentication failed.\n\n1. Billing not enabled on Google Cloud project\n2. Maps JavaScript API not enabled\n3. Key copied incorrectly');
+  };
+  const s = document.createElement('script');
+  s.src = 'https://maps.googleapis.com/maps/api/js?key=' + encodeURIComponent(key) + '&libraries=places&callback=_gmcb&loading=async';
+  s.async = true;
+  s.onerror = () => showError('Could not reach Google Maps. Check internet connection.');
+  document.head.appendChild(s);
+}
+
+function onGoogleReady() {
+  document.getElementById('keyScreen').style.display = 'none';
+  document.getElementById('mainHeader').style.display = 'flex';
+  document.getElementById('tab-check').style.display = 'flex';
+  loadClientsFromStorage();
+  renderClientSelect();
+  renderClientsList();
+  initMap();
+  setupAutocomplete();
+}
+
+// Dark map style
+const DARK_STYLE = [
+  {elementType:'geometry',stylers:[{color:'#1a1a1a'}]},
+  {elementType:'labels.text.fill',stylers:[{color:'#757575'}]},
+  {elementType:'labels.text.stroke',stylers:[{color:'#1a1a1a'}]},
+  {featureType:'administrative',elementType:'geometry',stylers:[{color:'#333'}]},
+  {featureType:'administrative.country',elementType:'labels.text.fill',stylers:[{color:'#9e9e9e'}]},
+  {featureType:'administrative.land_parcel',stylers:[{visibility:'off'}]},
+  {featureType:'administrative.locality',elementType:'labels.text.fill',stylers:[{color:'#bdbdbd'}]},
+  {featureType:'poi',elementType:'labels.text.fill',stylers:[{color:'#757575'}]},
+  {featureType:'poi.park',elementType:'geometry',stylers:[{color:'#212121'}]},
+  {featureType:'poi.park',elementType:'labels.text.fill',stylers:[{color:'#616161'}]},
+  {featureType:'road',elementType:'geometry.fill',stylers:[{color:'#2c2c2c'}]},
+  {featureType:'road',elementType:'labels.text.fill',stylers:[{color:'#8a8a8a'}]},
+  {featureType:'road.arterial',elementType:'geometry',stylers:[{color:'#373737'}]},
+  {featureType:'road.highway',elementType:'geometry',stylers:[{color:'#3c3c3c'}]},
+  {featureType:'road.highway.controlled_access',elementType:'geometry',stylers:[{color:'#4e4e4e'}]},
+  {featureType:'road.local',elementType:'labels.text.fill',stylers:[{color:'#616161'}]},
+  {featureType:'transit',elementType:'labels.text.fill',stylers:[{color:'#757575'}]},
+  {featureType:'water',elementType:'geometry',stylers:[{color:'#111'}]},
+  {featureType:'water',elementType:'labels.text.fill',stylers:[{color:'#3d3d3d'}]},
+];
+
+function initMap() {
+  map = new google.maps.Map(document.getElementById('map'), {
+    center: { lat: -33.87, lng: 151.21 },
+    zoom: 9,
+    styles: DARK_STYLE,
+    disableDefaultUI: false,
+    zoomControl: true,
+    mapTypeControl: false,
+    streetViewControl: false,
+    fullscreenControl: true,
+  });
+  // Draw initial client if one is pre-selected
+  const sel = document.getElementById('clientSelect');
+  if (sel.value) drawClientRadius(sel.value);
+}
+
+function setupAutocomplete() {
+  const auBounds = new google.maps.LatLngBounds(new google.maps.LatLng(-44,112), new google.maps.LatLng(-10,154));
+  suburbAC = new google.maps.places.Autocomplete(document.getElementById('suburbInput'), {
+    bounds: auBounds, componentRestrictions: { country: 'au' }, types: ['(regions)']
+  });
+  suburbAC.addListener('place_changed', () => {
+    const p = suburbAC.getPlace();
+    if (p && p.geometry) runCheck(p.geometry.location.lat(), p.geometry.location.lng(), p.formatted_address);
+  });
+  centerAC = new google.maps.places.Autocomplete(document.getElementById('clientCenter'), {
+    bounds: auBounds, componentRestrictions: { country: 'au' }, types: ['(regions)']
+  });
+}
+
+function haversine(a, b) {
+  const R = 6371, r = x => x * Math.PI / 180;
+  const dL = r(b.lat-a.lat), dN = r(b.lng-a.lng);
+  const x = Math.sin(dL/2)**2 + Math.cos(r(a.lat))*Math.cos(r(b.lat))*Math.sin(dN/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1-x));
+}
+
+function drawClientRadius(clientId) {
+  const client = clients.find(c => c.id === clientId);
+  if (!client || !map) return;
+  if (radiusCircle) radiusCircle.setMap(null);
+  if (centerMarker) centerMarker.setMap(null);
+  radiusCircle = new google.maps.Circle({
+    map,
+    center: client.centerCoords,
+    radius: client.radius * 1000,
+    fillColor: '#f05a1a',
+    fillOpacity: 0.08,
+    strokeColor: '#f05a1a',
+    strokeOpacity: 0.5,
+    strokeWeight: 2,
+  });
+  centerMarker = new google.maps.Marker({
+    map,
+    position: client.centerCoords,
+    title: client.name,
+    icon: {
+      path: google.maps.SymbolPath.CIRCLE,
+      scale: 7,
+      fillColor: '#f05a1a',
+      fillOpacity: 1,
+      strokeColor: '#fff',
+      strokeWeight: 2,
+    }
+  });
+  if (!leadMarker) {
+    map.fitBounds(radiusCircle.getBounds());
+  }
+}
+
+function onClientChange() {
+  const clientId = document.getElementById('clientSelect').value;
+  if (leadMarker) leadMarker.setMap(null);
+  leadMarker = null;
+  document.getElementById('resultBox').innerHTML = '<div class="result-placeholder">Start typing a suburb to check</div>';
+  document.getElementById('suburbInput').value = '';
+  if (clientId) drawClientRadius(clientId);
+}
+
+function runCheck(lat, lng, address) {
+  const client = clients.find(c => c.id === document.getElementById('clientSelect').value);
+  const el = document.getElementById('resultBox');
+  if (!client) { el.innerHTML = '<div class="result-placeholder">Select a client first</div>'; return; }
+
+  const dist = haversine(client.centerCoords, { lat, lng });
+  const inRadius = dist <= client.radius;
+  const nearEdge = !inRadius && dist <= client.radius + 10;
+
+  let badgeClass, badgeText, dColor;
+  if (inRadius) { badgeClass = 'in'; badgeText = 'In service area'; dColor = 'ok'; }
+  else if (nearEdge) { badgeClass = 'edge'; badgeText = 'Just outside - worth discussing'; dColor = 'edge'; }
+  else { badgeClass = 'out'; badgeText = 'Outside service area'; dColor = 'bad'; }
+
+  el.innerHTML = `
+    <div><span class="status-badge ${badgeClass}"><span class="status-dot"></span>${badgeText}</span></div>
+    <div class="metrics-row">
+      <div class="metric"><div class="metric-label">Distance from centre</div><div class="metric-value ${dColor}">${dist.toFixed(1)} km</div></div>
+      <div class="metric"><div class="metric-label">Service radius</div><div class="metric-value neutral">${client.radius} km</div></div>
+    </div>
+    <div class="result-addr">${address}</div>`;
+
+  // Drop red lead pin on map
+  if (leadMarker) leadMarker.setMap(null);
+  leadMarker = new google.maps.Marker({
+    map,
+    position: { lat, lng },
+    title: address,
+    icon: {
+      path: google.maps.SymbolPath.CIRCLE,
+      scale: 9,
+      fillColor: '#ef4444',
+      fillOpacity: 1,
+      strokeColor: '#fff',
+      strokeWeight: 2,
+    },
+    zIndex: 10,
+  });
+
+  // Fit map to show both the circle and the lead pin
+  const bounds = radiusCircle ? radiusCircle.getBounds() : new google.maps.LatLngBounds();
+  bounds.extend(new google.maps.LatLng(lat, lng));
+  map.fitBounds(bounds);
+}
+
+function initials(name) { return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0,2); }
+
+function sortedClients() { return [...clients].sort((a,b) => a.name.localeCompare(b.name)); }
+
+function renderClientSelect() {
+  const el = document.getElementById('clientSelect');
+  const prev = el.value;
+  el.innerHTML = clients.length
+    ? '<option value="">Select client...</option>' + sortedClients().map(c => `<option value="${c.id}">${c.name}</option>`).join('')
+    : '<option value="">No clients configured</option>';
+  if (prev && clients.find(c => c.id === prev)) el.value = prev;
+}
+
+function renderClientsList() {
+  const el = document.getElementById('clientsList');
+  if (!clients.length) { el.innerHTML = '<div class="appt-empty">No clients configured yet</div>'; return; }
+  el.innerHTML = sortedClients().map(c =>
+    `<div class="client-item">
+      <div class="client-dot">${initials(c.name)}</div>
+      <div style="flex:1">
+        <div class="client-item-name">${c.name}</div>
+        <div class="client-item-meta">${c.centerLabel} &mdash; ${c.radius} km radius</div>
+      </div>
+      <button class="danger" onclick="deleteClient('${c.id}')">Remove</button>
+    </div>`).join('');
+}
+
+async function addClient() {
+  const name = document.getElementById('clientName').value.trim();
+  const radius = parseFloat(document.getElementById('clientRadius').value);
+  if (!name || isNaN(radius)) return;
+  const place = centerAC.getPlace();
+  const centerLabel = document.getElementById('clientCenter').value.trim();
+  const btn = document.getElementById('addClientBtn');
+  const status = document.getElementById('addStatus');
+  btn.disabled = true; btn.textContent = 'Adding...'; status.textContent = '';
+  let coords = null;
+  if (place && place.geometry) {
+    coords = { lat: place.geometry.location.lat(), lng: place.geometry.location.lng() };
+  } else if (centerLabel) {
+    await new Promise(res => {
+      new google.maps.Geocoder().geocode({ address: centerLabel, componentRestrictions: { country: 'au' } }, (r, st) => {
+        if (st === 'OK' && r[0]) coords = { lat: r[0].geometry.location.lat(), lng: r[0].geometry.location.lng() };
+        res();
+      });
+    });
+  }
+  if (!coords) {
+    status.style.color = 'var(--red)'; status.textContent = 'Could not find that suburb.';
+    btn.disabled = false; btn.textContent = 'Add client'; return;
+  }
+  clients.push({ id: Date.now().toString(), name, centerLabel, centerCoords: coords, radius });
+  saveClients(); renderClientsList(); renderClientSelect();
+  ['clientName','clientCenter','clientRadius'].forEach(id => document.getElementById(id).value = '');
+  status.style.color = 'var(--green)'; status.textContent = 'Client added.';
+  setTimeout(() => status.textContent = '', 2500);
+  btn.disabled = false; btn.textContent = 'Add client';
+}
+
+function deleteClient(id) {
+  if (!confirm('Remove this client?')) return;
+  clients = clients.filter(c => c.id !== id);
+  saveClients(); renderClientsList(); renderClientSelect();
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab-nav button').forEach((b,i) => b.classList.toggle('active', ['check','setup','settings'][i] === tab));
+  document.getElementById('tab-check').style.display = tab === 'check' ? 'flex' : 'none';
+  document.getElementById('tab-setup').style.display = tab === 'setup' ? 'block' : 'none';
+  document.getElementById('tab-settings').style.display = tab === 'settings' ? 'block' : 'none';
+  if (tab === 'check' && map) google.maps.event.trigger(map, 'resize');
+}
+
+loadGoogleMaps(GMAPS_KEY);
+</script>
+</body>
+</html>
